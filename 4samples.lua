@@ -77,7 +77,7 @@ function DATA:header(t)
     local function isNum()   return s:find"^[A-Z]" end
     local function isGoal()  return s:find"[!+-]$" end
     local function isKlass() return s:find"!$" end
-    local function isSkip()  return s:find":$" end
+    local function isSkip()  return s:find"X$" end
     local col = push(cols.all, (isNum() and NUM or SYM)(s,n))
     if not isSkip() then
       if isKlass() then cols.klass=col end
@@ -100,8 +100,8 @@ function DATA:better(row1,row2) --> bool; returns true if `row1`'s goals better 
      s2= s2 - math.exp(col.w * (y-x)/#self.cols.y) end
    return s1/#self.cols.y < s2/#self.cols.y end
 
-function DATA:sorted() --- sort `self.rows`
-   return sort(self._rows, function(r1,r2) return self:better(r1,r2) end) end 
+function DATA:sorted(rows) --> t;  sort `rows` (defaults to `self._rows`)
+   return sort(rows or self._rows, function(r1,r2) return self:better(r1,r2) end) end 
             
 function DATA:clone(  init) --> data; return a table with the same structure
   local data = DATA()
@@ -158,6 +158,33 @@ function DATA:tree(max)
   end -------
   recurse(self,1) 
   return self,sort(parents,gt"gain") end
+
+
+function DATA:cart(rows,stop)
+  stop= stop or 2
+  rows = rows or self._rows
+  for n,x in pairs(self:sorted(rows)) do row.cart = n end
+  local all={}
+  for _,col in pairs(self.cols.x) do
+    local unique={}
+    for _,r in pairs(rows) do if at(r)~="?" then unique[at(r)]=at(r) end end
+    local function at(row)  return row.cells[col.at] end
+    local function SD(rows) return sd(map(rows,function(r) return r.cart end)) end
+    for _,v1 in pairs(unique) do
+      local best,at,val,lo,hi = SD(rows)
+      local a,b = {},{}
+      for _,row in pairs(rows) do
+        if at(row) ~="?" then push(at(row)<=v1 and a or b,row) end end 
+      local xpect = #a/#rows*SD(a)  + #b/#rows*SD(b)
+      if xpect < best then 
+        at,val,best,upto,above = col.at,v1,xpect,a,b end end 
+    push(all,{at=at,val=val,uptp=upto,above=above,best=best})
+  end 
+  all = sort(all,lt"best")
+
+end
+
+
 
 function DATA:sway(min)
   local stop = (#self._rows)^(min or the.min)
@@ -236,5 +263,6 @@ function DATA:split()
   local a,b = div(data._rows, out.at, out.value)
   print("")
   return mid(a,guess) < mid(b,guess) and a or b end
+
 
 return {the=the,DATA=DATA,NUM=NUM,ROW=ROW,SYM=SYM}

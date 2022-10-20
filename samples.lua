@@ -40,7 +40,7 @@ function eg.sorted()
   local data=DATA(the.file) 
   oo(data.cols.names)
   local rows=data:cheat() 
-  for i = 1,#rows,1 do
+  for i = 1,#rows,30 do
     print(rows[i].rank, o(rows[i].cells)) end end
 
 function eg.clone() 
@@ -129,5 +129,4 @@ function eg.tree()
   for _,row in pairs(data:split()) do print(row.guess) end end
 
 the=cli(the)
-oo(the)
 os.exit(run(the,eg))
