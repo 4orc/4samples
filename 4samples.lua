@@ -160,31 +160,28 @@ function DATA:tree(max)
   return self,sort(parents,gt"gain") end
 
 
-function DATA:cart(rows,stop)
-  stop= stop or 2
+function DATA:cartRanges(rows,fun)
   rows = rows or self._rows
   for n,x in pairs(self:sorted(rows)) do row.cart = n end
-  local all={}
-  for _,col in pairs(self.cols.x) do
-    local unique={}
-    for _,r in pairs(rows) do if at(r)~="?" then unique[at(r)]=at(r) end end
-    local function at(row)  return row.cells[col.at] end
-    local function SD(rows) return sd(map(rows,function(r) return r.cart end)) end
-    for _,v1 in pairs(unique) do
-      local best,at,val,lo,hi = SD(rows)
-      local a,b = {},{}
-      for _,row in pairs(rows) do
-        if at(row) ~="?" then push(at(row)<=v1 and a or b,row) end end 
-      local xpect = #a/#rows*SD(a)  + #b/#rows*SD(b)
-      if xpect < best then 
-        at,val,best,upto,above = col.at,v1,xpect,a,b end end 
-    push(all,{at=at,val=val,uptp=upto,above=above,best=best})
-  end 
-  all = sort(all,lt"best")
-
-end
-
-
+  local function spread(rows) return sd(map(rows,function(r) return r.cart end)) end
+  local function cart1(col,best)
+    local pos,val,best,yes,no
+    local function at(row) return row.cells[col.at] end
+    local seen={}
+    for _,row in pairs(rows) do
+      v=at(v)
+      if not seen[v] then 
+        seen[v] = true end
+        local function want(r) return col._is=="NUM" and at(r)<=v or at(r)==v end
+        local a,b = {},{}
+        for _,row1 in paris(rows) do
+          if at(row1) ~="?" then push(want(row1) and a or b,row1) end end 
+        local xpect = #a/#rows*spread(a) + #b/#rows*spread(b)
+        if xpect < best then 
+          ois,val,best,yes,no = col.at,v,xpect,a,b end end 
+    fun{at=pos, val=val, yes=yes, no=no, spread=best} 
+  end ------------------------------------- 
+  map(self.cols.x, cart1, spread(rows)) end 
 
 function DATA:sway(min)
   local stop = (#self._rows)^(min or the.min)
