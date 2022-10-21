@@ -18,7 +18,7 @@ local the={
   some  = 512 }
 
 local ROW, SYM, NUM, DATA = l.obj"ROW", l.obj"SYM", l.obj"NUM", l.obj"DATA"
-local any, gt,lt, o,oo      = l.any, l.gt, l.lt, l.o, l.oo
+local any, fmt,gt,lt, o,oo      = l.any, l.fmt,l.gt, l.lt, l.o, l.oo
 local map,push,same,sd,sort = l.map, l.push, l.same, l.sd, l.sort
 
 function ROW:new(t) --> ROW. 
@@ -177,10 +177,23 @@ function MAYBE:xpect(rows, yfun)
   for _,row in pairs(rows) do push( self:want(row) and yes or no, row) end  
   return #self.yes/#rows * spread(self.yes) + #self.no/#rows * spread(self.no) end 
 
-function DATA:cart(rows)
-  local function recurse(rows)
-    local out = {rows=rows}
+local TREE=l.obj"TREE"
+function TREE:new(here,left,right)
+  self.here, self.left, self.right = here,left,right end
+  
+function TREE:show(pre)
+  pre=pre or ""
+  print(fmt("%s%s", pre, #self.here))
+  if self.cond  then print(fmt("%s%s",pre,self.cond)) end
+  if self.left  then self.left:show(pre .. "|.. ") end
+  if self.right then self.left:show(pre .. "|.. ") end end
+  
+function DATA:cart()
+  local function recurse(rows,lvl)
+    print(("|.. "):rep(lvl),lvl)
+    local out = TREE(rows)
     if #rows >= 2 then 
+      print(1)
       local cond,best = nil,math.huge
       for _,col in pairs(self.cols.x) do
         local seen={}
@@ -190,12 +203,15 @@ function DATA:cart(rows)
             seen[v] = true end 
             local cond1 = MAYBE(col.at, v, col.txt, col._is=="NUM")
             local xpect = cond1:xpect(rows, function(r) return r.cart end)
+            print(cond1)
             if xpect < best then cond,best = cond1,xpect end end end
-      out.cond, out.yes, out.no = rule, recurse(xpect.yes), recurse(xpect.no) end 
+      out.cond, out.right, out.left = rule, recurse(xpect.yes,lvl+1), recurse(xpect.no,lvl+1) end 
     return out 
   end --------
-  for n,x in pairs(self:sorted(rows)) do row.cart = n end
-  return recurse(rows) end
+  local _,rows = self:sway(.25)
+  map(sort(rows,lt"rank"),oo)
+  for n,row in pairs(self:sorted(rows)) do  print(n); row.cart = n end
+  return recurse(rows2,0) end
 
 function DATA:sway(min)
   local stop = (#self._rows)^(min or the.min)
@@ -210,7 +226,7 @@ function DATA:sway(min)
     used[y._id] = y 
     return data:better(x,y) and recurse(xs,x) or recurse(ys,y) 
   end -------------------- 
-  return recurse(self),used end
+  return recurse(self),l.array(used) end
 
 function DATA:sneak(  stop)
   local dead = {}

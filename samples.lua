@@ -128,5 +128,11 @@ function eg.tree()
   local data=DATA(the.file)
   for _,row in pairs(data:split()) do print(row.guess) end end
 
+function eg.cart()
+  local data=DATA(the.file)
+  data:cheat()
+  data:cart():show() 
+  end
+
 the=cli(the)
 os.exit(run(the,eg))
