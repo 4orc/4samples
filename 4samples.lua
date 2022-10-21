@@ -6,16 +6,16 @@ Install:
 -- export LUA_PATH="?;?.lua;`dirname $PWD`/glua/?.lua" 
 -- lua eg.lua
 local the={
-  _help=help,
-  bins= 8,
-  Far = .95,
-  file= "../data/auto93.csv",
-  go  = "nothing",
-  help=false,
-  min = .5,
-  p   = 2,
-  seed= 937162211,
-  some= 512 }
+  _help = help,
+  bins  = 8,
+  Far   = .95,
+  file  = "../data/auto93.csv",
+  go    = "nothing",
+  help  = false,
+  min   = .5,
+  p     = 2,
+  seed  = 937162211,
+  some  = 512 }
 
 local ROW, SYM, NUM, DATA = l.obj"ROW", l.obj"SYM", l.obj"NUM", l.obj"DATA"
 local any, gt,lt, o,oo      = l.any, l.gt, l.lt, l.o, l.oo
@@ -159,29 +159,43 @@ function DATA:tree(max)
   recurse(self,1) 
   return self,sort(parents,gt"gain") end
 
+local MAYBE=l.obj"MAYBE"
+function MAYBE:new(at,v,txt,nump) 
+  self.yes, self.no = {},{}
+  self.at, self.v, self.txt, self.nump = at, v, txt,nump end
 
-function DATA:cartRanges(rows,fun)
-  rows = rows or self._rows
+function MAYBE:want(row)
+  local v= row.cells[self.at]
+  if v=="?" then return true end
+  if self.nump then return v <= self.v else return v == self.v end end
+
+function MAYBE:__tostring()
+  return fmt("%s %s %s", self.txt, self.nump and "<=" or "==", self.v) end
+
+function MAYBE:xpect(rows, yfun)
+  local function spread(t) return sd(map(t,function(r) return yfun(r) end)) end
+  for _,row in pairs(rows) do push( self:want(row) and yes or no, row) end  
+  return #self.yes/#rows * spread(self.yes) + #self.no/#rows * spread(self.no) end 
+
+function DATA:cart(rows)
+  local function recurse(rows)
+    local out = {rows=rows}
+    if #rows >= 2 then 
+      local cond,best = nil,math.huge
+      for _,col in pairs(self.cols.x) do
+        local seen={}
+        for _,row in pairs(rows) do
+          local v = row.cells[col.at]
+          if v ~= "?" and not seen[v] then -- only do this once for each unique value
+            seen[v] = true end 
+            local cond1 = MAYBE(col.at, v, col.txt, col._is=="NUM")
+            local xpect = cond1:xpect(rows, function(r) return r.cart end)
+            if xpect < best then cond,best = cond1,xpect end end end
+      out.cond, out.yes, out.no = rule, recurse(xpect.yes), recurse(xpect.no) end 
+    return out 
+  end --------
   for n,x in pairs(self:sorted(rows)) do row.cart = n end
-  local function spread(rows) return sd(map(rows,function(r) return r.cart end)) end
-  local function cart1(col,best)
-    local pos,val,best,yes,no
-    local function at(row) return row.cells[col.at] end
-    local seen={}
-    for _,row in pairs(rows) do
-      v=at(v)
-      if not seen[v] then 
-        seen[v] = true end
-        local function want(r) return col._is=="NUM" and at(r)<=v or at(r)==v end
-        local a,b = {},{}
-        for _,row1 in paris(rows) do
-          if at(row1) ~="?" then push(want(row1) and a or b,row1) end end 
-        local xpect = #a/#rows*spread(a) + #b/#rows*spread(b)
-        if xpect < best then 
-          ois,val,best,yes,no = col.at,v,xpect,a,b end end 
-    fun{at=pos, val=val, yes=yes, no=no, spread=best} 
-  end ------------------------------------- 
-  map(self.cols.x, cart1, spread(rows)) end 
+  return recurse(rows) end
 
 function DATA:sway(min)
   local stop = (#self._rows)^(min or the.min)
